@@ -91,6 +91,8 @@ canopen-sdo = { version = "0.1", default-features = false }
 
 ## Live-bus tests against CANopenNode
 
+![canopen-sdo-test](CANopenNodeTest.png)
+
 In addition to the in-process unit tests in `src/`, this repo ships a
 small end-to-end harness that drives the client against a real
 [CANopenNode](https://github.com/CANopenNode/CANopenNode) SDO server
