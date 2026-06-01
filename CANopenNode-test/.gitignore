@@ -1,0 +1,8 @@
+# Local build artifacts (Makefile drops everything under ./build/, but
+# stray .o files can also appear next to .c if someone overrides BUILD_DIR).
+/build/
+/canopend-sdo-test
+*.o
+
+# Runtime state written by canopend's storage subsystem
+*.persist

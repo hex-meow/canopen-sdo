@@ -34,3 +34,7 @@ anyhow = "1"
 [[example]]
 name = "upload_download"
 required-features = ["tokio"]
+
+[[example]]
+name = "against_canopennode"
+required-features = ["tokio"]

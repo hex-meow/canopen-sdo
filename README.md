@@ -89,6 +89,26 @@ Disable the `tokio` feature to compile without any async dependency:
 canopen-sdo = { version = "0.1", default-features = false }
 ```
 
+## Live-bus tests against CANopenNode
+
+In addition to the in-process unit tests in `src/`, this repo ships a
+small end-to-end harness that drives the client against a real
+[CANopenNode](https://github.com/CANopenNode/CANopenNode) SDO server
+running on a Linux `vcan` interface. It covers expedited and segmented
+uploads/downloads, server aborts and client timeouts.
+
+See [`CANopenNode-test/README.md`](CANopenNode-test/README.md) for
+build/run instructions. In short:
+
+```text
+# one terminal: build & run the C server (uses CANopenLinux + a custom OD)
+cd CANopenNode-test
+./setup-vcan.sh && make && ./run.sh
+
+# another terminal: drive every SDO scenario from Rust
+cargo run --example against_canopennode -- vcan0 0x10
+```
+
 ## Design notes
 
 - **One transfer at a time per `SdoClient`.** Starting another while
