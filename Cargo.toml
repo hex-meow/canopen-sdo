@@ -9,6 +9,15 @@ keywords = ["canopen", "sdo", "cia301", "sans-io", "can"]
 categories = ["embedded", "network-programming", "no-std"]
 authors = ["KisonHe <kisonhepenpal@gmail.com>"]
 
+# Files that live in this repo for development/testing convenience but
+# are not useful to consumers of the published crate. Without this
+# `cargo publish` would ship the entire vendored CANopenNode tree
+# (~1 MB of Apache-2.0 C source) inside the .crate tarball.
+exclude = [
+    "/CANopenNode-test",
+    "/CANopenNodeTest.png",
+]
+
 [dependencies]
 thiserror = "1"
 log = "0.4"

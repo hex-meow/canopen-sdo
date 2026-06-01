@@ -1,5 +1,7 @@
-//! End-to-end SDO scenarios against the CANopenNode-based test server in
-//! [`CANopenNode-test/`](../CANopenNode-test/README.md).
+//! End-to-end SDO scenarios against the CANopenNode-based test server
+//! that lives in the `CANopenNode-test/` directory of this crate's
+//! [source repository](https://github.com/hexmecha/canopen-sdo/tree/master/CANopenNode-test)
+//! (not shipped in the published crate tarball).
 //!
 //! Bring the server up first (it provides the custom OD entries 0x2000 /
 //! 0x2001 we need for segmented transfers):
