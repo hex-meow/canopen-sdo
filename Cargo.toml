@@ -1,0 +1,34 @@
+[package]
+name = "canopen-sdo"
+version = "0.1.0"
+edition = "2021"
+description = "Sans-IO CANopen SDO client (CiA 301) — expedited, segmented, abort, with optional tokio glue."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/hexmecha/canopen-sdo.git"
+keywords = ["canopen", "sdo", "cia301", "sans-io", "can"]
+categories = ["embedded", "network-programming", "no-std"]
+authors = ["KisonHe <kisonhepenpal@gmail.com>"]
+
+[dependencies]
+thiserror = "1"
+log = "0.4"
+
+# tokio / can-transport are only pulled in by the `tokio` feature.
+can-transport = { path = "../can-transport", version = "0.1", optional = true }
+tokio = { version = "1", features = ["time", "macros", "sync", "rt"], optional = true }
+
+[features]
+default = ["tokio"]
+# Adds an async, tokio-based convenience layer that drives the sans-io
+# state machine on top of a `can-transport::CanBus`.
+tokio = ["dep:tokio", "dep:can-transport"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+can-transport = { path = "../can-transport", features = ["socketcan"] }
+env_logger = "0.11"
+anyhow = "1"
+
+[[example]]
+name = "upload_download"
+required-features = ["tokio"]
