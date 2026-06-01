@@ -14,7 +14,8 @@ thiserror = "1"
 log = "0.4"
 
 # tokio / can-transport are only pulled in by the `tokio` feature.
-can-transport = { path = "../can-transport", version = "0.1", optional = true }
+can-transport = { version = "0.1", optional = true }
+# can-transport = { path = "../can-transport", version = "0.1", optional = true }
 tokio = { version = "1", features = ["time", "macros", "sync", "rt"], optional = true }
 
 [features]
@@ -25,7 +26,8 @@ tokio = ["dep:tokio", "dep:can-transport"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-can-transport = { path = "../can-transport", features = ["socketcan"] }
+can-transport = { version = "0.1", features = ["socketcan"] }
+# can-transport = { path = "../can-transport", features = ["socketcan"] }
 env_logger = "0.11"
 anyhow = "1"
 

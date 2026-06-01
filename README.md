@@ -8,7 +8,7 @@ feed it CAN frames, it tells you which frames to send next and when to
 fire a timeout. This makes it trivial to unit-test, easy to port
 across runtimes (tokio, embassy, blocking), and tiny to embed.
 
-An optional tokio + [`can-transport`](../can-transport) glue layer is
+An optional tokio + [`can-transport`](https://crates.io/crates/can-transport) glue layer is
 shipped behind the `tokio` feature (enabled by default) so the common
 case stays a one-liner.
 
