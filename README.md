@@ -47,6 +47,21 @@ You can hand `upload_bytes` any type implementing
 a serial-CAN bridge, or an in-memory loopback (for tests) requires zero
 changes to the SDO code.
 
+### Off Linux (or driverless CAN-FD): gs_usb / candleLight
+
+To run against a gs_usb adapter — on Windows, macOS, or Linux without the
+kernel driver — enable `can-transport`'s `gs_usb` feature and open a
+`GsUsbBus` instead; the SDO calls are identical:
+
+```rust
+use can_transport::gs_usb::{GsUsbBus, GsUsbConfig};
+let bus = GsUsbBus::open(GsUsbConfig::fd_1m_5m()).await?; // 1 Mbit / 5 Mbit FD
+let name = upload_bytes(&bus, node, 0x1008, 0x00, timeout).await?;
+```
+
+See `examples/sdo_gs_usb.rs` for a runnable Identity-object (0x1018) read,
+and the `can-transport` README for the per-platform driver story.
+
 ## Sans-IO usage (any runtime, no_std-friendly aside from `Vec<u8>`)
 
 If you don't want the tokio glue, drive the state machine yourself:
