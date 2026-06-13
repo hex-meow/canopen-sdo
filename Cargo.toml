@@ -1,6 +1,6 @@
 [package]
 name = "canopen-sdo"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Sans-IO CANopen SDO client (CiA 301) — expedited, segmented, abort, with optional tokio glue."
 license = "MIT OR Apache-2.0"
