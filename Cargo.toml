@@ -1,8 +1,11 @@
 [package]
 name = "canopen-sdo"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
-description = "Sans-IO CANopen SDO client (CiA 301) — expedited, segmented, abort, with optional tokio glue."
+# `impl core::error::Error` (error.rs) is stable since 1.81; consumers (e.g.
+# comeow) adopting 0.2 must use rustc >= 1.81.
+rust-version = "1.81"
+description = "Sans-IO CANopen SDO client and server (CiA 301) — expedited, segmented, abort; no_std, with optional tokio glue."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hexmecha/canopen-sdo.git"
 keywords = ["canopen", "sdo", "cia301", "sans-io", "can"]
@@ -19,26 +22,35 @@ exclude = [
 ]
 
 [dependencies]
-thiserror = "1"
-log = "0.4"
-
-# tokio / can-transport are only pulled in by the `tokio` feature.
+# Host-only: pulled in by the `tokio` async glue.
+thiserror = { version = "1", optional = true }
+log = { version = "0.4", optional = true }
 can-transport = { version = "0.1.1", optional = true }
 # can-transport = { path = "../can-transport", version = "0.1", optional = true }
 tokio = { version = "1", features = ["time", "macros", "sync", "rt"], optional = true }
 
 [features]
 default = ["tokio"]
-# Adds an async, tokio-based convenience layer that drives the sans-io
-# state machine on top of a `can-transport::CanBus`.
-tokio = ["dep:tokio", "dep:can-transport"]
+# Sans-io SDO *client* (master). Needs an allocator for the payload buffers.
+client = ["alloc"]
+alloc = []
+# Sans-io SDO *server* (node). no_std + no alloc (fixed `[u8; N]` buffer).
+server = []
+# Async, tokio-based convenience layer driving the client over a
+# `can-transport::CanBus`. Host-only; implies `client` + std.
+tokio = ["dep:tokio", "dep:can-transport", "dep:thiserror", "dep:log", "client"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-can-transport = { version = "0.1.1", features = ["socketcan"] }
-# can-transport = { path = "../can-transport", features = ["socketcan"] }
 env_logger = "0.11"
 anyhow = "1"
+
+# `socketcan` only builds on Linux. Keep it (and the examples that drive a real
+# bus) Linux-only so the sans-io lib unit tests still run on macOS/Windows via:
+#   cargo test --lib --no-default-features --features client,server
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+can-transport = { version = "0.1.1", features = ["socketcan", "gs_usb"] }
+# can-transport = { path = "../can-transport", features = ["socketcan", "gs_usb"] }
 
 [[example]]
 name = "upload_download"

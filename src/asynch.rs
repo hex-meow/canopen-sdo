@@ -5,15 +5,29 @@
 //! It exposes the convenience functions [`upload_bytes`] and
 //! [`download_bytes`], plus a retrying variant of each.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use can_transport::{CanBus, CanFilter, CanFrame, CanId, CanIoError, FrameKind};
 use thiserror::Error;
-use tokio::time::sleep_until;
+use tokio::time::{sleep_until, Instant};
 
 use crate::client::{SdoClient, SdoConfig, SdoOutcome};
 use crate::error::SdoError;
 use crate::frame::SdoFrame;
+
+/// Nanoseconds elapsed since `epoch` — the monotonic `u64` clock the sans-io
+/// client speaks. ~584 years to overflow a u64, so the truncation is safe.
+fn ns_since(epoch: Instant) -> u64 {
+    epoch.elapsed().as_nanos() as u64
+}
+
+fn config_from(timeout: Option<Duration>) -> SdoConfig {
+    SdoConfig {
+        timeout: timeout
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or_else(|| SdoConfig::default().timeout),
+    }
+}
 
 /// Combined error type for async SDO operations.
 #[derive(Debug, Error)]
@@ -35,13 +49,11 @@ pub async fn upload_bytes(
     od_subindex: u8,
     timeout: Option<Duration>,
 ) -> Result<Vec<u8>, AsyncSdoError> {
-    let cfg = SdoConfig {
-        timeout: timeout.unwrap_or(SdoConfig::default().timeout),
-    };
-    let mut client = SdoClient::new(cfg);
+    let mut client = SdoClient::new(config_from(timeout));
     let mut rx = subscribe_for(bus, node_id).await?;
-    client.begin_upload(node_id, od_index, od_subindex, Instant::now())?;
-    match drive(bus, &mut client, rx.as_mut()).await? {
+    let epoch = Instant::now();
+    client.begin_upload(node_id, od_index, od_subindex, ns_since(epoch))?;
+    match drive(bus, &mut client, rx.as_mut(), epoch).await? {
         SdoOutcome::UploadCompleted(data) => Ok(data),
         SdoOutcome::DownloadCompleted => unreachable!("upload never returns DownloadCompleted"),
     }
@@ -56,13 +68,11 @@ pub async fn download_bytes(
     data: &[u8],
     timeout: Option<Duration>,
 ) -> Result<(), AsyncSdoError> {
-    let cfg = SdoConfig {
-        timeout: timeout.unwrap_or(SdoConfig::default().timeout),
-    };
-    let mut client = SdoClient::new(cfg);
+    let mut client = SdoClient::new(config_from(timeout));
     let mut rx = subscribe_for(bus, node_id).await?;
-    client.begin_download(node_id, od_index, od_subindex, data, Instant::now())?;
-    match drive(bus, &mut client, rx.as_mut()).await? {
+    let epoch = Instant::now();
+    client.begin_download(node_id, od_index, od_subindex, data, ns_since(epoch))?;
+    match drive(bus, &mut client, rx.as_mut(), epoch).await? {
         SdoOutcome::DownloadCompleted => Ok(()),
         SdoOutcome::UploadCompleted(_) => unreachable!(),
     }
@@ -130,6 +140,7 @@ async fn drive(
     bus: &(impl CanBus + ?Sized),
     client: &mut SdoClient,
     rx: &mut dyn can_transport::CanRx,
+    epoch: Instant,
 ) -> Result<SdoOutcome, AsyncSdoError> {
     loop {
         // 1) Drain anything the state machine wants to send.
@@ -142,8 +153,9 @@ async fn drive(
         let next_deadline = client.poll_timeout();
 
         let frame_or_timeout = match next_deadline {
-            Some(dl) => {
-                let dl_tokio = tokio::time::Instant::from_std(dl);
+            Some(dl_ns) => {
+                // dl_ns is nanoseconds-since-epoch; map back to a tokio Instant.
+                let dl_tokio = epoch + Duration::from_nanos(dl_ns);
                 tokio::select! {
                     biased;
                     frame = rx.recv() => Some(frame),
@@ -158,13 +170,13 @@ async fn drive(
                 let Some(sdo) = can_to_sdo(&frame) else {
                     continue;
                 };
-                if let Some(outcome) = client.handle_frame(sdo, Instant::now())? {
+                if let Some(outcome) = client.handle_frame(sdo, ns_since(epoch))? {
                     return Ok(outcome);
                 }
             }
             Some(Err(e)) => return Err(e.into()),
             None => {
-                if let Some(outcome) = client.handle_timeout(Instant::now())? {
+                if let Some(outcome) = client.handle_timeout(ns_since(epoch))? {
                     return Ok(outcome);
                 }
                 // Timeout path queues an abort frame; drain it next loop.

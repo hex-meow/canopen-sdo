@@ -32,10 +32,21 @@ impl SdoFrame {
         COB_TSDO_BASE | (node_id as u16 & 0x7F)
     }
 
-    /// Extract the node ID from a COB-ID. Returns `None` if the COB-ID
-    /// is not an SDO frame for this node space.
+    /// Extract the node ID from a *response* (TSDO, 0x580) COB-ID. Returns
+    /// `None` if the COB-ID is not in the TSDO space (what a *client* listens
+    /// for).
     pub fn node_of_tsdo(cob_id: u16) -> Option<u8> {
         if cob_id & 0x780 == COB_TSDO_BASE {
+            Some((cob_id & 0x7F) as u8)
+        } else {
+            None
+        }
+    }
+
+    /// Extract the node ID from a *request* (RSDO, 0x600) COB-ID. Returns `None`
+    /// if the COB-ID is not in the RSDO space (what a *server* listens for).
+    pub fn node_of_rsdo(cob_id: u16) -> Option<u8> {
+        if cob_id & 0x780 == COB_RSDO_BASE {
             Some((cob_id & 0x7F) as u8)
         } else {
             None
