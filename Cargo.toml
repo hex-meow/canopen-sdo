@@ -63,3 +63,10 @@ required-features = ["tokio"]
 [[example]]
 name = "sdo_gs_usb"
 required-features = ["tokio"]
+
+# Server-side demo: runs our SdoServer as a node on a SocketCAN bus, to be
+# driven by an *independent* SDO master (python-canopen, cocomm, …). Needs the
+# `server` state machine plus the `tokio` SocketCAN glue.
+[[example]]
+name = "server_demo"
+required-features = ["tokio", "server"]
