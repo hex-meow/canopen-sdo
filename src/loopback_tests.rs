@@ -22,7 +22,10 @@ impl LoopOd {
         self
     }
     fn get(&self, idx: u16, sub: u8) -> Option<&[u8]> {
-        self.entries.iter().find(|e| e.0 == idx && e.1 == sub).map(|e| e.2.as_slice())
+        self.entries
+            .iter()
+            .find(|e| e.0 == idx && e.1 == sub)
+            .map(|e| e.2.as_slice())
     }
 }
 impl ObjectDictionary for LoopOd {
@@ -50,7 +53,11 @@ impl ObjectDictionary for LoopOd {
 
 /// Pump frames between client and server (no IO, no time) until the client
 /// produces an outcome or someone errors out.
-fn run(client: &mut SdoClient, server: &mut SdoServer<N>, od: &mut LoopOd) -> Result<SdoOutcome, SdoError> {
+fn run(
+    client: &mut SdoClient,
+    server: &mut SdoServer<N>,
+    od: &mut LoopOd,
+) -> Result<SdoOutcome, SdoError> {
     let now = 0u64;
     for _ in 0..10_000 {
         if let Some(f) = client.poll_transmit() {
@@ -102,7 +109,11 @@ fn roundtrip_download_all_sizes() {
         c.begin_download(NODE, 0x3000, 1, &value, 0).unwrap();
         let out = run(&mut c, &mut s, &mut od).unwrap();
         assert_eq!(out, SdoOutcome::DownloadCompleted, "download len={len}");
-        assert_eq!(od.get(0x3000, 1), Some(value.as_slice()), "od value len={len}");
+        assert_eq!(
+            od.get(0x3000, 1),
+            Some(value.as_slice()),
+            "od value len={len}"
+        );
         assert!(c.is_idle() && s.is_idle());
     }
 }
@@ -115,12 +126,18 @@ fn roundtrip_write_then_read_back() {
     let mut c = client();
     let mut s = server();
     c.begin_download(NODE, 0x4000, 0, &value, 0).unwrap();
-    assert_eq!(run(&mut c, &mut s, &mut od).unwrap(), SdoOutcome::DownloadCompleted);
+    assert_eq!(
+        run(&mut c, &mut s, &mut od).unwrap(),
+        SdoOutcome::DownloadCompleted
+    );
 
     let mut c = client();
     let mut s = server();
     c.begin_upload(NODE, 0x4000, 0, 0).unwrap();
-    assert_eq!(run(&mut c, &mut s, &mut od).unwrap(), SdoOutcome::UploadCompleted(value));
+    assert_eq!(
+        run(&mut c, &mut s, &mut od).unwrap(),
+        SdoOutcome::UploadCompleted(value)
+    );
 }
 
 #[test]
@@ -130,6 +147,9 @@ fn upload_nonexistent_propagates_server_abort() {
     let mut s = server();
     c.begin_upload(NODE, 0x9999, 0, 0).unwrap();
     let res = run(&mut c, &mut s, &mut od);
-    assert!(matches!(res, Err(SdoError::ServerAborted(SdoAbortCode::ObjectDoesNotExist))));
+    assert!(matches!(
+        res,
+        Err(SdoError::ServerAborted(SdoAbortCode::ObjectDoesNotExist))
+    ));
     assert!(c.is_idle() && s.is_idle());
 }

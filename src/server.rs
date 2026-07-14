@@ -229,7 +229,12 @@ impl<const N: usize> SdoServer<N> {
     fn on_upload_segment(&mut self, cmd: u8, now: u64) -> Result<(), SdoError> {
         let (idx, sub, len, sent, toggle) = match &self.state {
             State::Uploading {
-                idx, sub, len, sent, toggle, ..
+                idx,
+                sub,
+                len,
+                sent,
+                toggle,
+                ..
             } => (*idx, *sub, *len, *sent, *toggle),
             _ => return self.abort(0, 0, SdoAbortCode::InvalidCommandSpecifier),
         };
@@ -273,7 +278,11 @@ impl<const N: usize> SdoServer<N> {
         if e {
             // expedited write: if s, len = 4 - n; if size not indicated (s=0),
             // all four data bytes are significant (CiA 301).
-            let len = if s { (4 - ((cmd >> 2) & 0b11)) as usize } else { 4 };
+            let len = if s {
+                (4 - ((cmd >> 2) & 0b11)) as usize
+            } else {
+                4
+            };
             if let Err(code) = od.write(idx, sub, &data[4..4 + len]) {
                 return self.abort(idx, sub, code);
             }
@@ -311,7 +320,12 @@ impl<const N: usize> SdoServer<N> {
     ) -> Result<(), SdoError> {
         let (idx, sub, len, expected, toggle) = match &self.state {
             State::Downloading {
-                idx, sub, len, expected, toggle, ..
+                idx,
+                sub,
+                len,
+                expected,
+                toggle,
+                ..
             } => (*idx, *sub, *len, *expected, *toggle),
             _ => return self.abort(0, 0, SdoAbortCode::InvalidCommandSpecifier),
         };
@@ -434,7 +448,11 @@ mod tests {
                 .find(|e| e.0 == idx && e.1 == sub)
                 .map(|e| e.2.as_slice())
         }
-        fn find_mut(&mut self, idx: u16, sub: u8) -> Option<&mut (u16, u8, std::vec::Vec<u8>, bool, bool)> {
+        fn find_mut(
+            &mut self,
+            idx: u16,
+            sub: u8,
+        ) -> Option<&mut (u16, u8, std::vec::Vec<u8>, bool, bool)> {
             self.entries.iter_mut().find(|e| e.0 == idx && e.1 == sub)
         }
     }
@@ -455,7 +473,9 @@ mod tests {
             Ok(e.2.len())
         }
         fn write(&mut self, index: u16, sub: u8, data: &[u8]) -> Result<(), SdoAbortCode> {
-            let e = self.find_mut(index, sub).ok_or(SdoAbortCode::ObjectDoesNotExist)?;
+            let e = self
+                .find_mut(index, sub)
+                .ok_or(SdoAbortCode::ObjectDoesNotExist)?;
             if !e.3 {
                 return Err(SdoAbortCode::WriteReadOnly);
             }
@@ -517,7 +537,10 @@ mod tests {
         s.handle_frame(req(init), 0, &mut od).unwrap();
         let r = s.poll_transmit().unwrap();
         assert_eq!(r.data[0], SCS_INIT_UPLOAD | 0b01); // e=0,s=1
-        assert_eq!(u32::from_le_bytes([r.data[4], r.data[5], r.data[6], r.data[7]]), 11);
+        assert_eq!(
+            u32::from_le_bytes([r.data[4], r.data[5], r.data[6], r.data[7]]),
+            11
+        );
 
         // request segment, toggle=0 -> 7 bytes, c=0
         let mut seg_req = [0u8; 8];
@@ -583,7 +606,10 @@ mod tests {
             &payload[7..11],
         );
         s.handle_frame(req(seg2), 0, &mut od).unwrap();
-        assert_eq!(s.poll_transmit().unwrap().data[0], SCS_DOWNLOAD_SEGMENT | TOGGLE_BIT);
+        assert_eq!(
+            s.poll_transmit().unwrap().data[0],
+            SCS_DOWNLOAD_SEGMENT | TOGGLE_BIT
+        );
         assert_eq!(od.get(0x2001, 2), Some(&payload[..]));
         assert!(s.is_idle());
     }
@@ -597,10 +623,16 @@ mod tests {
         data[1] = 0x99;
         data[2] = 0x99;
         let res = s.handle_frame(req(data), 0, &mut od);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::ObjectDoesNotExist))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(SdoAbortCode::ObjectDoesNotExist))
+        ));
         let r = s.poll_transmit().unwrap();
         assert_eq!(r.data[0], CS_ABORT);
-        assert_eq!(u32::from_le_bytes([r.data[4], r.data[5], r.data[6], r.data[7]]), SdoAbortCode::ObjectDoesNotExist.raw());
+        assert_eq!(
+            u32::from_le_bytes([r.data[4], r.data[5], r.data[6], r.data[7]]),
+            SdoAbortCode::ObjectDoesNotExist.raw()
+        );
     }
 
     #[test]
@@ -613,7 +645,10 @@ mod tests {
         data[2] = 0x10;
         data[4..8].copy_from_slice(&[9, 9, 9, 9]);
         let res = s.handle_frame(req(data), 0, &mut od);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::WriteReadOnly))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(SdoAbortCode::WriteReadOnly))
+        ));
         assert_eq!(s.poll_transmit().unwrap().data[0], CS_ABORT);
     }
 
@@ -626,7 +661,10 @@ mod tests {
         data[1] = 0x00;
         data[2] = 0x30;
         let res = s.handle_frame(req(data), 0, &mut od);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::ReadWriteOnly))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(SdoAbortCode::ReadWriteOnly))
+        ));
     }
 
     #[test]
@@ -644,7 +682,12 @@ mod tests {
         let mut bad = [0u8; 8];
         bad[0] = CCS_UPLOAD_SEGMENT | TOGGLE_BIT;
         let res = s.handle_frame(req(bad), 0, &mut od);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::ToggleBitNotAlternated))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(
+                SdoAbortCode::ToggleBitNotAlternated
+            ))
+        ));
         assert!(s.is_idle());
     }
 
@@ -659,7 +702,10 @@ mod tests {
         s.handle_frame(req(init), 0, &mut od).unwrap();
         let r = s.poll_transmit().unwrap();
         assert_eq!(r.data[0], SCS_INIT_UPLOAD | 0b01); // segmented (e=0, s=1)
-        assert_eq!(u32::from_le_bytes([r.data[4], r.data[5], r.data[6], r.data[7]]), 0);
+        assert_eq!(
+            u32::from_le_bytes([r.data[4], r.data[5], r.data[6], r.data[7]]),
+            0
+        );
         // The single final segment carries zero payload bytes, c=1.
         let mut seg = [0u8; 8];
         seg[0] = CCS_UPLOAD_SEGMENT; // toggle 0
@@ -691,7 +737,10 @@ mod tests {
         data[1] = 0x00;
         data[2] = 0x20;
         let res = s.handle_frame(SdoFrame::new(SdoFrame::rsdo_id(NODE), data), 0, &mut od);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::OutOfMemory))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(SdoAbortCode::OutOfMemory))
+        ));
         assert_eq!(s.poll_transmit().unwrap().data[0], CS_ABORT);
         assert!(s.is_idle());
     }
@@ -724,9 +773,11 @@ mod tests {
         let dl = s.poll_timeout().unwrap();
         // No client follow-up; deadline passes.
         let res = s.handle_timeout(dl + 1);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))
+        ));
         assert_eq!(s.poll_transmit().unwrap().data[0], CS_ABORT);
         assert!(s.is_idle());
     }
 }
-

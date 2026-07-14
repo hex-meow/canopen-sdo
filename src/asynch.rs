@@ -122,8 +122,9 @@ pub async fn download_bytes_retry(
 fn is_transient(e: &AsyncSdoError) -> bool {
     matches!(
         e,
-        AsyncSdoError::Sdo(SdoError::ClientAborted(crate::SdoAbortCode::ProtocolTimeout))
-            | AsyncSdoError::Io(_)
+        AsyncSdoError::Sdo(SdoError::ClientAborted(
+            crate::SdoAbortCode::ProtocolTimeout
+        )) | AsyncSdoError::Io(_)
     )
 }
 

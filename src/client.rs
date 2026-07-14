@@ -120,7 +120,13 @@ impl SdoClient {
 
     // ----- transfer kick-off -----
 
-    pub fn begin_upload(&mut self, node_id: u8, idx: u16, sub: u8, now: u64) -> Result<(), SdoError> {
+    pub fn begin_upload(
+        &mut self,
+        node_id: u8,
+        idx: u16,
+        sub: u8,
+        now: u64,
+    ) -> Result<(), SdoError> {
         validate_node_id(node_id)?;
         if !self.is_idle() {
             return Err(SdoError::Busy);
@@ -194,7 +200,11 @@ impl SdoClient {
         Err(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))
     }
 
-    pub fn handle_frame(&mut self, frame: SdoFrame, now: u64) -> Result<Option<SdoOutcome>, SdoError> {
+    pub fn handle_frame(
+        &mut self,
+        frame: SdoFrame,
+        now: u64,
+    ) -> Result<Option<SdoOutcome>, SdoError> {
         let Some(frame_node) = SdoFrame::node_of_tsdo(frame.cob_id) else {
             return Ok(None);
         };
@@ -220,7 +230,9 @@ impl SdoClient {
         match core::mem::replace(&mut self.state, State::Idle) {
             State::Idle => Ok(None),
             State::Uploading(ctx) => self.advance_upload(ctx, frame_node, cmd, &frame.data, now),
-            State::Downloading(ctx) => self.advance_download(ctx, frame_node, cmd, &frame.data, now),
+            State::Downloading(ctx) => {
+                self.advance_download(ctx, frame_node, cmd, &frame.data, now)
+            }
         }
     }
 
@@ -273,7 +285,8 @@ impl SdoClient {
                     Ok(Some(SdoOutcome::UploadCompleted(out)))
                 } else {
                     if s {
-                        ctx.expected_len = Some(u32::from_le_bytes([data[4], data[5], data[6], data[7]]));
+                        ctx.expected_len =
+                            Some(u32::from_le_bytes([data[4], data[5], data[6], data[7]]));
                         ctx.received.reserve(ctx.expected_len.unwrap_or(0) as usize);
                     }
                     let toggle = ctx.next_toggle;
@@ -290,16 +303,30 @@ impl SdoClient {
                 }
                 let frame_toggle = (cmd & TOGGLE_BIT) != 0;
                 if frame_toggle != ctx.next_toggle {
-                    self.queue_abort(ctx.node_id, ctx.idx, ctx.sub, SdoAbortCode::ToggleBitNotAlternated);
-                    return Err(SdoError::ClientAborted(SdoAbortCode::ToggleBitNotAlternated));
+                    self.queue_abort(
+                        ctx.node_id,
+                        ctx.idx,
+                        ctx.sub,
+                        SdoAbortCode::ToggleBitNotAlternated,
+                    );
+                    return Err(SdoError::ClientAborted(
+                        SdoAbortCode::ToggleBitNotAlternated,
+                    ));
                 }
                 let (payload_len, c) = wire::decode_segment(cmd);
                 ctx.received.extend_from_slice(&data[1..1 + payload_len]);
                 if c {
                     if let Some(exp) = ctx.expected_len {
                         if ctx.received.len() != exp as usize {
-                            self.queue_abort(ctx.node_id, ctx.idx, ctx.sub, SdoAbortCode::DataTypeLengthMismatch);
-                            return Err(SdoError::ClientAborted(SdoAbortCode::DataTypeLengthMismatch));
+                            self.queue_abort(
+                                ctx.node_id,
+                                ctx.idx,
+                                ctx.sub,
+                                SdoAbortCode::DataTypeLengthMismatch,
+                            );
+                            return Err(SdoError::ClientAborted(
+                                SdoAbortCode::DataTypeLengthMismatch,
+                            ));
                         }
                     }
                     let out = core::mem::take(&mut ctx.received);
@@ -361,8 +388,15 @@ impl SdoClient {
                 // (which we flipped after sending).
                 let expected = !ctx.next_toggle;
                 if frame_toggle != expected {
-                    self.queue_abort(ctx.node_id, ctx.idx, ctx.sub, SdoAbortCode::ToggleBitNotAlternated);
-                    return Err(SdoError::ClientAborted(SdoAbortCode::ToggleBitNotAlternated));
+                    self.queue_abort(
+                        ctx.node_id,
+                        ctx.idx,
+                        ctx.sub,
+                        SdoAbortCode::ToggleBitNotAlternated,
+                    );
+                    return Err(SdoError::ClientAborted(
+                        SdoAbortCode::ToggleBitNotAlternated,
+                    ));
                 }
                 if last {
                     self.clear_transfer();
@@ -414,7 +448,10 @@ impl SdoClient {
     /// Like [`Self::abort_with`] but for use inside `advance_*` after
     /// `self.state` has been moved out via `mem::replace`.
     fn queue_abort(&mut self, node_id: u8, idx: u16, sub: u8, code: SdoAbortCode) {
-        self.pending_tx = Some(SdoFrame::new(SdoFrame::rsdo_id(node_id), wire::abort(idx, sub, code)));
+        self.pending_tx = Some(SdoFrame::new(
+            SdoFrame::rsdo_id(node_id),
+            wire::abort(idx, sub, code),
+        ));
         self.deadline = None;
         self.state = State::Idle;
     }
@@ -424,8 +461,12 @@ impl SdoClient {
         let frame_sub = wire::subindex_of(data);
         match &self.state {
             State::Idle => false,
-            State::Uploading(u) => u.node_id == frame_node && u.idx == frame_idx && u.sub == frame_sub,
-            State::Downloading(d) => d.node_id == frame_node && d.idx == frame_idx && d.sub == frame_sub,
+            State::Uploading(u) => {
+                u.node_id == frame_node && u.idx == frame_idx && u.sub == frame_sub
+            }
+            State::Downloading(d) => {
+                d.node_id == frame_node && d.idx == frame_idx && d.sub == frame_sub
+            }
         }
     }
 }
@@ -522,7 +563,10 @@ mod tests {
         data[3] = 0x00;
         data[4..8].copy_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]);
         let out = c.handle_frame(server_frame(0x10, data), t0()).unwrap();
-        assert_eq!(out, Some(SdoOutcome::UploadCompleted(vec![0xDE, 0xAD, 0xBE, 0xEF])));
+        assert_eq!(
+            out,
+            Some(SdoOutcome::UploadCompleted(vec![0xDE, 0xAD, 0xBE, 0xEF]))
+        );
         assert!(c.is_idle());
     }
 
@@ -578,7 +622,10 @@ mod tests {
         seg2[0] = SCS_UPLOAD_SEGMENT | TOGGLE_BIT | (3 << 1) | 1;
         seg2[1..5].copy_from_slice(b"worl");
         let out = c.handle_frame(server_frame(2, seg2), t0()).unwrap();
-        assert_eq!(out, Some(SdoOutcome::UploadCompleted(b"hello, worl".to_vec())));
+        assert_eq!(
+            out,
+            Some(SdoOutcome::UploadCompleted(b"hello, worl".to_vec()))
+        );
         assert!(c.is_idle());
     }
 
@@ -603,7 +650,12 @@ mod tests {
         seg[0] = SCS_UPLOAD_SEGMENT | TOGGLE_BIT;
         seg[1..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7]);
         let res = c.handle_frame(server_frame(3, seg), t0());
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::ToggleBitNotAlternated))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(
+                SdoAbortCode::ToggleBitNotAlternated
+            ))
+        ));
         // Abort frame must be queued
         let abort = c.poll_transmit().unwrap();
         assert_eq!(abort.data[0], CS_ABORT);
@@ -615,7 +667,8 @@ mod tests {
     #[test]
     fn download_expedited() {
         let mut c = SdoClient::new(SdoConfig::default());
-        c.begin_download(0x10, 0x6040, 0x00, &[0x06, 0x00], t0()).unwrap();
+        c.begin_download(0x10, 0x6040, 0x00, &[0x06, 0x00], t0())
+            .unwrap();
         let req = c.poll_transmit().unwrap();
         // e=1, s=1, n=2
         assert_eq!(req.data[0], CCS_INIT_DOWNLOAD | (2 << 2) | 0b11);
@@ -641,7 +694,10 @@ mod tests {
         // Init request: segmented, size indicated
         let init = c.poll_transmit().unwrap();
         assert_eq!(init.data[0], CCS_INIT_DOWNLOAD | 0b01);
-        assert_eq!(u32::from_le_bytes([init.data[4], init.data[5], init.data[6], init.data[7]]), 11);
+        assert_eq!(
+            u32::from_le_bytes([init.data[4], init.data[5], init.data[6], init.data[7]]),
+            11
+        );
 
         // Server acks the init
         let mut ack = [0u8; 8];
@@ -663,7 +719,10 @@ mod tests {
 
         // Second segment: 4 bytes, toggle=1, c=1 (last) → n=3
         let seg2 = c.poll_transmit().unwrap();
-        assert_eq!(seg2.data[0], CCS_DOWNLOAD_SEGMENT | TOGGLE_BIT | (3 << 1) | 1);
+        assert_eq!(
+            seg2.data[0],
+            CCS_DOWNLOAD_SEGMENT | TOGGLE_BIT | (3 << 1) | 1
+        );
         assert_eq!(&seg2.data[1..5], &payload[7..11]);
 
         // Server acks segment 2 with toggle=1
@@ -690,7 +749,10 @@ mod tests {
         abort[4..8].copy_from_slice(&SdoAbortCode::ObjectDoesNotExist.raw().to_le_bytes());
 
         let res = c.handle_frame(server_frame(5, abort), t0());
-        assert!(matches!(res, Err(SdoError::ServerAborted(SdoAbortCode::ObjectDoesNotExist))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ServerAborted(SdoAbortCode::ObjectDoesNotExist))
+        ));
         assert!(c.is_idle());
         // Client does not echo an abort frame in this case.
         assert!(c.poll_transmit().is_none());
@@ -711,7 +773,10 @@ mod tests {
         // Pretend time advanced past the deadline
         let later = dl + 5_000_000;
         let res = c.handle_timeout(later);
-        assert!(matches!(res, Err(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))));
+        assert!(matches!(
+            res,
+            Err(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))
+        ));
         let f = c.poll_transmit().unwrap();
         assert_eq!(f.data[0], CS_ABORT);
         assert!(c.is_idle());
@@ -723,8 +788,14 @@ mod tests {
     fn cannot_begin_two_transfers() {
         let mut c = SdoClient::new(SdoConfig::default());
         c.begin_upload(1, 0x1000, 0, t0()).unwrap();
-        assert!(matches!(c.begin_upload(1, 0x1001, 0, t0()), Err(SdoError::Busy)));
-        assert!(matches!(c.begin_download(1, 0x1001, 0, &[1, 2], t0()), Err(SdoError::Busy)));
+        assert!(matches!(
+            c.begin_upload(1, 0x1001, 0, t0()),
+            Err(SdoError::Busy)
+        ));
+        assert!(matches!(
+            c.begin_download(1, 0x1001, 0, &[1, 2], t0()),
+            Err(SdoError::Busy)
+        ));
     }
 
     #[test]

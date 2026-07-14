@@ -20,7 +20,9 @@ use canopen_sdo::asynch::{download_bytes, upload_bytes};
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let iface = std::env::args().nth(1).unwrap_or_else(|| "vcan0".to_string());
+    let iface = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "vcan0".to_string());
     let node_id: u8 = std::env::args()
         .nth(2)
         .map(|s| {

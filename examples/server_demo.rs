@@ -64,9 +64,21 @@ impl DemoOd {
             entries: vec![
                 // 0x1000:00 deviceType, RO u32 — expedited read, and the target
                 // for the "write to a read-only object" abort.
-                Entry { idx: 0x1000, sub: 0, val: vec![0x92, 0x01, 0x0F, 0x00], writable: false, readable: true },
+                Entry {
+                    idx: 0x1000,
+                    sub: 0,
+                    val: vec![0x92, 0x01, 0x0F, 0x00],
+                    writable: false,
+                    readable: true,
+                },
                 // 0x2002:00 RW u16 — expedited read/write round-trip.
-                Entry { idx: 0x2002, sub: 0, val: vec![0x00, 0x00], writable: true, readable: true },
+                Entry {
+                    idx: 0x2002,
+                    sub: 0,
+                    val: vec![0x00, 0x00],
+                    writable: true,
+                    readable: true,
+                },
                 // 0x2000:00 RO VISIBLE_STRING (> 4 bytes) — forces segmented upload.
                 Entry {
                     idx: 0x2000,
@@ -76,19 +88,29 @@ impl DemoOd {
                     readable: true,
                 },
                 // 0x2001:00 RW buffer — segmented download + readback.
-                Entry { idx: 0x2001, sub: 0, val: Vec::new(), writable: true, readable: true },
+                Entry {
+                    idx: 0x2001,
+                    sub: 0,
+                    val: Vec::new(),
+                    writable: true,
+                    readable: true,
+                },
             ],
         }
     }
 
     fn find(&self, idx: u16, sub: u8) -> Option<usize> {
-        self.entries.iter().position(|e| e.idx == idx && e.sub == sub)
+        self.entries
+            .iter()
+            .position(|e| e.idx == idx && e.sub == sub)
     }
 }
 
 impl ObjectDictionary for DemoOd {
     fn read(&mut self, index: u16, sub: u8, buf: &mut [u8]) -> Result<usize, SdoAbortCode> {
-        let i = self.find(index, sub).ok_or(SdoAbortCode::ObjectDoesNotExist)?;
+        let i = self
+            .find(index, sub)
+            .ok_or(SdoAbortCode::ObjectDoesNotExist)?;
         let e = &self.entries[i];
         if !e.readable {
             return Err(SdoAbortCode::ReadWriteOnly);
@@ -102,7 +124,9 @@ impl ObjectDictionary for DemoOd {
     }
 
     fn write(&mut self, index: u16, sub: u8, data: &[u8]) -> Result<(), SdoAbortCode> {
-        let i = self.find(index, sub).ok_or(SdoAbortCode::ObjectDoesNotExist)?;
+        let i = self
+            .find(index, sub)
+            .ok_or(SdoAbortCode::ObjectDoesNotExist)?;
         let e = &mut self.entries[i];
         if !e.writable {
             return Err(SdoAbortCode::WriteReadOnly);
@@ -144,7 +168,9 @@ fn can_to_sdo(f: &CanFrame) -> Option<SdoFrame> {
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let iface = std::env::args().nth(1).unwrap_or_else(|| "vcan0".to_string());
+    let iface = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "vcan0".to_string());
     let node_id: u8 = std::env::args()
         .nth(2)
         .map(|s| {

@@ -46,7 +46,9 @@ const X2001_TOTAL_LEN: usize = 256;
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let iface = std::env::args().nth(1).unwrap_or_else(|| "vcan0".to_string());
+    let iface = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "vcan0".to_string());
     let node_id: u8 = std::env::args()
         .nth(2)
         .map(|s| {
@@ -56,9 +58,7 @@ async fn main() -> anyhow::Result<()> {
         })
         .unwrap_or(0x10);
 
-    println!(
-        "Driving SDO scenarios against canopend-sdo-test on {iface} (node 0x{node_id:02X})\n"
-    );
+    println!("Driving SDO scenarios against canopend-sdo-test on {iface} (node 0x{node_id:02X})\n");
     let bus = SocketCanBus::open(&iface)?;
 
     let mut runner = ScenarioRunner::default();
@@ -67,19 +67,25 @@ async fn main() -> anyhow::Result<()> {
     // Expedited uploads
     // ------------------------------------------------------------------
     runner
-        .step("expedited upload 4B  (0x1000:00 deviceType, ro u32)", async {
-            let v = upload_bytes(&bus, node_id, 0x1000, 0x00, TIMEOUT).await?;
-            ensure(v.len() == 4, format!("expected 4 bytes, got {}", v.len()))?;
-            Ok(format!("← {:02X?}", v))
-        })
+        .step(
+            "expedited upload 4B  (0x1000:00 deviceType, ro u32)",
+            async {
+                let v = upload_bytes(&bus, node_id, 0x1000, 0x00, TIMEOUT).await?;
+                ensure(v.len() == 4, format!("expected 4 bytes, got {}", v.len()))?;
+                Ok(format!("← {:02X?}", v))
+            },
+        )
         .await;
 
     runner
-        .step("expedited upload 4B  (0x1018:01 vendor-ID, ro u32)", async {
-            let v = upload_bytes(&bus, node_id, 0x1018, 0x01, TIMEOUT).await?;
-            ensure(v.len() == 4, format!("expected 4 bytes, got {}", v.len()))?;
-            Ok(format!("← {:02X?}", v))
-        })
+        .step(
+            "expedited upload 4B  (0x1018:01 vendor-ID, ro u32)",
+            async {
+                let v = upload_bytes(&bus, node_id, 0x1018, 0x01, TIMEOUT).await?;
+                ensure(v.len() == 4, format!("expected 4 bytes, got {}", v.len()))?;
+                Ok(format!("← {:02X?}", v))
+            },
+        )
         .await;
 
     runner
@@ -114,7 +120,10 @@ async fn main() -> anyhow::Result<()> {
                 let want: u8 = 0x05;
                 download_bytes(&bus, node_id, 0x1019, 0x00, &[want], TIMEOUT).await?;
                 let got = upload_bytes(&bus, node_id, 0x1019, 0x00, TIMEOUT).await?;
-                ensure(got == [want], format!("readback {:02X?} != {:02X?}", got, [want]))?;
+                ensure(
+                    got == [want],
+                    format!("readback {:02X?} != {:02X?}", got, [want]),
+                )?;
                 Ok(format!("→ {:02X} → {:02X?}", want, got))
             },
         )
@@ -138,20 +147,17 @@ async fn main() -> anyhow::Result<()> {
         .await;
 
     runner
-        .step(
-            "expedited download 4B + readback (0x1006:00 ← 0)",
-            async {
-                let want: u32 = 0;
-                let want_bytes = want.to_le_bytes();
-                download_bytes(&bus, node_id, 0x1006, 0x00, &want_bytes, TIMEOUT).await?;
-                let got = upload_bytes(&bus, node_id, 0x1006, 0x00, TIMEOUT).await?;
-                ensure(
-                    got == want_bytes,
-                    format!("readback {:02X?} != {:02X?}", got, want_bytes),
-                )?;
-                Ok(format!("→ {} → {:02X?}", want, got))
-            },
-        )
+        .step("expedited download 4B + readback (0x1006:00 ← 0)", async {
+            let want: u32 = 0;
+            let want_bytes = want.to_le_bytes();
+            download_bytes(&bus, node_id, 0x1006, 0x00, &want_bytes, TIMEOUT).await?;
+            let got = upload_bytes(&bus, node_id, 0x1006, 0x00, TIMEOUT).await?;
+            ensure(
+                got == want_bytes,
+                format!("readback {:02X?} != {:02X?}", got, want_bytes),
+            )?;
+            Ok(format!("→ {} → {:02X?}", want, got))
+        })
         .await;
 
     // ------------------------------------------------------------------
@@ -227,19 +233,18 @@ async fn main() -> anyhow::Result<()> {
     // Client timeout — talk to a NodeID that nobody is answering
     // ------------------------------------------------------------------
     runner
-        .step(
-            "client timeout abort (bogus node 0x7E, 100 ms)",
-            async {
-                let bogus = pick_bogus_node(node_id);
-                match upload_bytes(&bus, bogus, 0x1000, 0x00, Some(Duration::from_millis(100))).await {
-                    Ok(v) => Err(format!("unexpected success from 0x{bogus:02X}: {:02X?}", v).into()),
-                    Err(AsyncSdoError::Sdo(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))) => {
-                        Ok(format!("got expected ClientAborted(ProtocolTimeout) from 0x{bogus:02X}"))
-                    }
-                    Err(other) => Err(format!("expected ProtocolTimeout, got {other}").into()),
+        .step("client timeout abort (bogus node 0x7E, 100 ms)", async {
+            let bogus = pick_bogus_node(node_id);
+            match upload_bytes(&bus, bogus, 0x1000, 0x00, Some(Duration::from_millis(100))).await {
+                Ok(v) => Err(format!("unexpected success from 0x{bogus:02X}: {:02X?}", v).into()),
+                Err(AsyncSdoError::Sdo(SdoError::ClientAborted(SdoAbortCode::ProtocolTimeout))) => {
+                    Ok(format!(
+                        "got expected ClientAborted(ProtocolTimeout) from 0x{bogus:02X}"
+                    ))
                 }
-            },
-        )
+                Err(other) => Err(format!("expected ProtocolTimeout, got {other}").into()),
+            }
+        })
         .await;
 
     // ------------------------------------------------------------------

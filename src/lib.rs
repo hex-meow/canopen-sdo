@@ -46,7 +46,7 @@ pub use client::{SdoClient, SdoConfig, SdoOutcome};
 #[cfg(feature = "server")]
 pub mod server;
 #[cfg(feature = "server")]
-pub use server::{ObjectDictionary, ServerConfig, SdoServer};
+pub use server::{ObjectDictionary, SdoServer, ServerConfig};
 
 #[cfg(feature = "tokio")]
 pub mod asynch;

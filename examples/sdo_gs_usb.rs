@@ -53,10 +53,7 @@ async fn main() -> anyhow::Result<()> {
         match upload_bytes(&bus, node_id, 0x1018, sub, TIMEOUT).await {
             Ok(v) => {
                 let val = as_u32(&v);
-                println!(
-                    "  0x1018:{sub:02X} {name:<16} = 0x{val:08X}  ({:02X?})",
-                    v
-                );
+                println!("  0x1018:{sub:02X} {name:<16} = 0x{val:08X}  ({:02X?})", v);
             }
             Err(e) => println!("  0x1018:{sub:02X} {name:<16} = <error: {e}>"),
         }
